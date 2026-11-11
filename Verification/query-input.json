@@ -1,0 +1,13 @@
+{
+  "title": "Read host and IFC GUID parameters",
+  "inputs": {
+    "host_ids": [
+      927298,
+      927300,
+      927304,
+      927319,
+      927364
+    ]
+  },
+  "script": "from pyrevit.api import DB\nfrom pyrevit.revit.db.query import get_param\n\ndef value(p):\n    if p.StorageType == DB.StorageType.String:\n        return p.AsString()\n    return p.AsValueString()\n\ndef describe(e):\n    if e is None:\n        return None\n    ps = []\n    for p in e.Parameters:\n        name = p.Definition.Name\n        if any(s in name.lower() for s in ['guid', 'test', 'tag', 'ifc']):\n            ps.append({'name': name, 'storage': str(p.StorageType), 'value': value(p)})\n    return {'id': e.Id.Value, 'class': e.GetType().FullName, 'parameters': ps}\n\nhosts = [describe(doc.GetElement(DB.ElementId(i))) for i in inputs['host_ids']]\nlinks = []\nfor link in DB.FilteredElementCollector(doc).OfClass(DB.RevitLinkInstance):\n    linked_doc = link.GetLinkDocument()\n    if linked_doc is None:\n        continue\n    candidates = []\n    for e in DB.FilteredElementCollector(linked_doc).WhereElementIsNotElementType():\n        if e.Category and e.Category.Id.Value in [-2008000, -2008044]:\n            candidates.append(describe(e))\n    t = link.GetTotalTransform()\n    links.append({'id': link.Id.Value, 'name': link.Name, 'transform_origin_ft': [t.Origin.X,t.Origin.Y,t.Origin.Z], 'elements': candidates})\nresult = {'hosts': hosts, 'links': links, 'host_modified': doc.IsModified}\n"
+}

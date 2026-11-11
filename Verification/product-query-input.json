@@ -1,0 +1,17 @@
+{
+  "inputs": {
+    "dll": "D:\\2_Revit\\6_Working\\00. Revit_API\\Project\\MEP_Compare_Project_ver1\\MEP_Compare_Project_ver1\\bin\\Debug\\net8.0-windows\\MEP_Compare_Project_ver1.dll",
+    "diagnostic_pairs": [
+      [
+        927319,
+        323434
+      ],
+      [
+        927304,
+        323448
+      ]
+    ]
+  },
+  "title": "Read-only test of Compare DLL inside Revit",
+  "script": "from pyrevit.api import DB\nimport System\nfrom System import Array, Object, Int64, Double, Enum\nfrom System.Reflection import Assembly\nfrom System.Collections.Generic import List\n\nassembly = Assembly.LoadFile(inputs['dll'])\nprefix = 'MEP_Compare_Project_ver1.'\ndef type_of(name):\n    return assembly.GetType(prefix + name, True)\ndef call(name, method, args):\n    return type_of(name).GetMethod(method).Invoke(None, Array[Object](args))\nlinks = list(DB.FilteredElementCollector(doc).OfClass(DB.RevitLinkInstance))\nlink = next(x for x in links if x.GetLinkDocument() is not None)\nscope_type = type_of('Models.Scope')\noptions = type_of('Models.RunOptions').GetConstructors()[0].Invoke(Array[Object]([\n    Int64(link.Id.Value),True,True,Enum.Parse(scope_type,'WholeModel'),'Revit.test',Double(1),Double(1),Double(1),Double(0.1)]))\ndata = call('Readers.ModelReader','Read',[uidoc,options,List[DB.ElementId]()])\nmatches = call('Matching.GuidMatcher','Match',[data.Item1,data.Item2,True])\nrows = []\nfor pair in matches:\n    r = call('Comparison.ComparisonService','Compare',[pair,options])\n    rows.append({'host_id':r.HostId,'linked_id':r.LinkedId,'tag':r.IfcTag,'guid':r.Guid,'status':unicode(r.Status).encode('ascii','backslashreplace'),\n        'dx_mm':r.DeltaXmm,'dy_mm':r.DeltaYmm,'dz_mm':r.DeltaZmm,'endpoint_mm':r.EndpointMm,\n        'angle_deg':r.AngleDeg,'size_mm':r.SizeMm,'length_mm':r.LengthMm,'roll_deg':r.RollDeg,'notes':unicode(r.Notes).encode('ascii','backslashreplace')})\ndiagnostic = []\nfor pair_ids in inputs.get('diagnostic_pairs',[]):\n    h = doc.GetElement(DB.ElementId(pair_ids[0]))\n    l = link.GetLinkDocument().GetElement(DB.ElementId(pair_ids[1]))\n    host = next(x for x in data.Item1 if x.Id == pair_ids[0])\n    target = next(x for x in data.Item2 if x.Id == pair_ids[1])\n    # Explicit geometry-only diagnostic, independent of matching acceptance.\n    pair = type_of('Matching.MatchItem').GetConstructors()[0].Invoke(Array[Object]([host,target,'Paired','diagnostic only']))\n    r = call('Comparison.ComparisonService','Compare',[pair,options])\n    diagnostic.append({'host_id':r.HostId,'linked_id':r.LinkedId,'tag':r.IfcTag,'status_geometry_only':unicode(r.Status).encode('ascii','backslashreplace'),\n        'dx_mm':r.DeltaXmm,'dy_mm':r.DeltaYmm,'dz_mm':r.DeltaZmm,'notes':unicode(r.Notes).encode('ascii','backslashreplace')})\nresult = {'assembly':assembly.Location,'rows':rows,'diagnostic_not_matching_override':diagnostic,'host_modified':doc.IsModified}\n\r\n"
+}

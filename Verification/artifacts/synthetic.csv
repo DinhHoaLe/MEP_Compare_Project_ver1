@@ -1,0 +1,3 @@
+﻿HostId,LinkedId,Category,SourceGuid,IfcTag,Status,DeltaX_mm,DeltaY_mm,DeltaZ_mm,MaxEndpoint_mm,LengthError_mm,AxisAngle_deg,SectionError_mm,Roll_deg,Notes,Document,Link,SourceParameter,Scope,PositionTolerance_mm,SizeTolerance_mm,LengthTolerance_mm,AngleTolerance_deg,ExportedAt,MatchMethod,CandidateLinkedIds,GeometryFallback,SearchDistance_mm,SearchSize_mm,SearchLength_mm,SearchAngle_deg
+"","","","'=1+1","","Match","","","","","","","","","comma, quote""
+and newline","Synthetic model","Synthetic IFC","Revit.test","WholeModel","1","1","1","0.1","2026-11-12T00:19:36.4700792+07:00","","","True","1000","10","100","5"
