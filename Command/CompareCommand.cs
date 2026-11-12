@@ -28,6 +28,8 @@ public sealed class CompareCommand : IExternalCommand
             var initialSelection=ui.Selection.GetElementIds().ToList();
             RunOptions? options=null;bool configure=true;
             IReadOnlyList<ResultRow> rows=[];
+            MappingSession? mapping=null;
+            HashSet<long> scopedIds=[];
             while(true)
             {
                 if(configure)
@@ -39,15 +41,20 @@ public sealed class CompareCommand : IExternalCommand
                     // inside Execute. No transaction, background task, or document write.
                     var data=ModelReader.Read(ui,options,initialSelection);
                     if(data.Hosts.Count==0) { TaskDialog.Show("Compare Project Ver1","Không có Ducts/Pipes native trong phạm vi đã chọn.");continue; }
-                    var scopedIds=data.Hosts.Select(h=>h.Id).ToHashSet();
+                    scopedIds=data.Hosts.Select(h=>h.Id).ToHashSet();
                     var matchHosts=options.Scope==Scope.WholeModel ? data.Hosts : ModelReader.Read(ui,options with { Scope=Scope.WholeModel },initialSelection).Hosts;
-                    rows=PairingService.Match(matchHosts,data.Links,options.Scope==Scope.WholeModel,options)
-                        .Where(pair=>options.Scope==Scope.WholeModel || pair.Host is not null && scopedIds.Contains(pair.Host.Id))
-                        .Select(pair=>ComparisonService.Compare(pair,options)).ToList();
+                    var instance=(RevitLinkInstance)ui.Document.GetElement(new ElementId(options.LinkId));
+                    var context=new MappingContext(ui.Document.ProjectInformation.UniqueId,instance.UniqueId,instance.GetLinkDocument()!.ProjectInformation.UniqueId);
+                    if(mapping is null || mapping.Context!=context) mapping=new MappingSession(context,matchHosts,data.Links);
+                    else mapping.UpdateData(matchHosts,data.Links);
                 }
                 configure=false;
-                var result=new ResultsWindow(rows,options!,ui.Document.Title,links.First(l=>l.Id==options!.LinkId).Name);
+                rows=mapping!.Match(options!.Scope==Scope.WholeModel,options)
+                    .Where(pair=>options.Scope==Scope.WholeModel || pair.Host is not null && scopedIds.Contains(pair.Host.Id))
+                    .Select(pair=>ComparisonService.Compare(pair,options)).ToList();
+                var result=new ResultsWindow(rows,options!,ui.Document.Title,links.First(l=>l.Id==options!.LinkId).Name,mapping);
                 Own(result,commandData.Application.MainWindowHandle);result.ShowDialog();
+                if(result.Action==ResultAction.Refresh) continue;
                 if(result.Action==ResultAction.Close) return Result.Succeeded;
                 if(result.Action==ResultAction.Configure) { configure=true;continue; }
                 try { Navigate(ui,options!.LinkId,result.Selected!,result.Action); }

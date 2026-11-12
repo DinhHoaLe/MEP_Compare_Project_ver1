@@ -78,6 +78,6 @@ public static class ModelReader
         AxisGeometry? geometry=null;string issue="";
         try { geometry=GeometryReader.Read(e,t); }
         catch(Exception ex) when(ex is not OutOfMemoryException) { issue=ex.Message; }
-        return new(e.Id.Value,e.Name,category,key,tag,geometry,issue,linked);
+        return new(e.Id.Value,e.Name,category,key,tag,geometry,issue,linked) { UniqueId=e.UniqueId };
     }
 }

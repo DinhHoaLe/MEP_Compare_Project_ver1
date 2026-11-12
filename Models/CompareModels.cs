@@ -28,7 +28,11 @@ public record AxisGeometry(Vec Start, Vec End, Shape Shape, double WidthMm, doub
     public Vec Direction => (End-Start).Unit;
 }
 public record ElementData(long Id, string Name, string Category, string Guid, string Tag,
-    AxisGeometry? Geometry, string GeometryIssue, bool Linked);
+    AxisGeometry? Geometry, string GeometryIssue, bool Linked)
+{
+    public string UniqueId { get; init; } = "";
+    public string Display => $"{Id} | {Category} | {Name} | Tag: {Tag} | GUID: {Guid}";
+}
 public record LinkChoice(long Id, string Name, bool Loaded, bool IsIfc)
 {
     public string Display => $"{Id} | {Name}" + (!Loaded ? " [Unloaded]" : !IsIfc ? " [IFC chưa xác định]" : "");

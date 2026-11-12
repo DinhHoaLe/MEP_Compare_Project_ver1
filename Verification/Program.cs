@@ -43,6 +43,7 @@ internal static class Program
         Check(GuidMatcher.Match([], [Element(2,"",axis,true)],true).Single().Status=="MissingIfcGuid","missing IFC GUID");
         Check(GuidMatcher.Match([], [Element(2,"A",axis,true)],false).Count==0,"scoped mode suppresses unrelated linked-only rows");
         PairingChecks.Run(Check);
+        MappingChecks.Run(Check);
         var output=Path.Combine(Directory.GetCurrentDirectory(),"Verification","artifacts");Directory.CreateDirectory(output);
         var csv=Path.Combine(output,"synthetic.csv");
         var sample=new ResultRow { Guid="=1+1",Notes="comma, quote\"\nand newline",Status="Match" };
@@ -68,6 +69,17 @@ internal static class Program
             Descendants((DependencyObject)surface.Content).OfType<TextBox>().First(c=>c.Width==240).Text="8,9";
             Check(resultGrid.Items.Count==1,"headless WPF can filter ambiguous candidate IDs");
             Check(((ResultRow)resultGrid.Items[0]).LinkedId is null,"headless WPF unresolved row has no selected IFC");
+            var mappingHost=Element(71,"",axis) with { UniqueId="host-ui" };
+            var mappingLink=Element(81,"",axis,true) with { UniqueId="link-ui" };
+            var mapping=new MappingSession(new("host","instance","linked"),[mappingHost],[mappingLink]);
+            var mappingRow=ComparisonService.Compare(new(mappingHost,null,PairingService.ConfirmationStatus,""),Options);
+            var mappingSurface=new ResultsWindow([mappingRow],Options,"Synthetic host","Synthetic IFC",mapping);
+            RenderWithoutWindow(mappingSurface,Path.Combine(output,"results-manual-mapping.png"),1350,750);
+            Check(Descendants((DependencyObject)mappingSurface.Content).OfType<Button>().Any(b=>Equals(b.Content,"Nạp mapping…")) && Descendants((DependencyObject)mappingSurface.Content).OfType<Button>().Any(b=>Equals(b.Content,"Lưu mapping…")),"headless WPF mapping save/load controls");
+            var picker=new ManualPairWindow(mapping,mappingRow);
+            RenderWithoutWindow(picker,Path.Combine(output,"manual-pair-picker.png"),850,440);
+            Check(Descendants((DependencyObject)picker.Content).OfType<ListBox>().Single().Items.Count==1,"headless WPF manual IFC picker lists compatible elements");
+            picker.Close();mappingSurface.Close();
             setup.Close();surface.Close();app.Shutdown();
             Console.WriteLine($"{checks} checks passed; WPF rendered in memory without opening windows.");return;
         }

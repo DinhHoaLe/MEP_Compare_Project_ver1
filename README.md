@@ -1,5 +1,37 @@
 # Compare Project Ver1 — Revit 2025
 
+## DLL chạy thử hiện tại — Revit 2025.5 / .NET 10
+
+Máy build cài Revit **2025.5 / 25.5.0.57**. RevitNET, RevitAPI và AddInManager runtimeconfig đều dùng net10.0. [Autodesk release notes](https://help.autodesk.com/cloudhelp/2025/ENU/RevitReleaseNotes/files/2025updates/RevitReleaseNotes_2025updates_2025_5_html.html) xác nhận bản 2025.5 chuyển sang .NET 10. Dự án sản phẩm và Verification hiện target net10.0-windows, giữ nguyên DLL API cài trong Revit.
+
+**Load bản mới:** `bin\x64\Release\net10.0-windows\MEP_Compare_Project_ver1.dll` bằng Add-In Manager → Manual → chọn `MEP_Compare_Project_ver1.Command.CompareCommand` → Run. Gói ZIP: `bin\MEP_Compare_Revit2025.5_Mapping.zip`. Nếu đã load DLL cũ trong cùng phiên, mở lại Revit trước khi thử. Bản này dành cho **Revit 2025.5**, không dùng cho Revit 2025.0–2025.4 (.NET 8) hoặc Revit 2023.
+
+Chọn dòng host → **Xác nhận cặp…** → chọn IFC → xác nhận → **Lưu mapping…**. Lần chạy sau dùng **Nạp mapping…**. Không sửa phần tử model.
+
+Build: `dotnet build MEP_Compare_Project_ver1.csproj -c Release -p:Platform=x64 -p:RestoreConfigFile=NuGet.Config`.
+
+Verification: `dotnet build Verification\Verification.csproj -c Release -p:RestoreConfigFile=NuGet.Config`, sau đó `dotnet Verification\bin\Release\net10.0-windows\Verification.dll --headless-ui`.
+
+Các ghi chú Debug/GeometryFallback bên dưới là lịch sử; dùng đường dẫn Release mới ở trên để thử mapping.
+
+## Xác nhận thủ công và lưu mapping — 12/11/2026
+
+Bảng kết quả có thêm **Xác nhận cặp…**, **Bỏ cặp thủ công**, **Lưu mapping…** và **Nạp mapping…**. Phần này thay thế giới hạn “chưa có xác nhận thủ công” trong các ghi chú cũ bên dưới.
+
+1. Chạy Compare, chọn một dòng có Host ID rồi bấm **Xác nhận cặp…**.
+2. Tìm IFC theo ID, tên, Tag hoặc GUID; danh sách chỉ có phần tử cùng loại Duct/Pipe đã được bộ đọc nhận diện. Các ứng viên hình học được đưa lên đầu, vẫn có thể chọn phần tử ngoài giới hạn tìm hình học.
+3. Chọn IFC và bấm **Xác nhận cặp**. Bảng được tính lại với Cách ghép = **Manual**. Xác nhận chỉ xác định đối tượng cần so sánh; các sai số và trạng thái Match/Different vẫn tính theo dung sai. Hình học không hỗ trợ vẫn báo GeometryUnsupported.
+4. Bấm **Lưu mapping…**, chọn file JSON. File chỉ chứa các cặp thủ công, không lưu toàn bộ kết quả ghép tự động. CSV tiếp tục xuất Cách ghép = Manual.
+5. Khi chạy command lần sau, chọn cùng model/link instance, chạy Compare rồi **Nạp mapping…**. Nên chọn cả Ducts và Pipes nếu file có cả hai nhóm. Nạp file thay thế toàn bộ mapping thủ công trong phiên hiện tại.
+6. **Bỏ cặp thủ công** trả host về ghép tự động; lưu lại JSON nếu muốn giữ thay đổi này. Có cảnh báo khi rời bảng mà mapping chưa lưu.
+
+Cặp thủ công được dành trước, rồi mới ghép GUID và hình học cho phần còn lại. Mỗi host chỉ có một IFC và mỗi IFC chỉ thuộc một host thủ công; muốn chuyển IFC cho host khác phải bỏ cặp cũ trước. View/selection vẫn xét mapping và cạnh tranh trong toàn bộ host thuộc nhóm đang chọn, chỉ giới hạn các dòng báo cáo.
+
+Mapping lưu Revit UniqueId của hai phần tử, ProjectInformation.UniqueId của hai document và UniqueId của link instance; không dùng ElementId số để khôi phục cặp. Không sửa parameter hoặc model. File khác model/link instance, có cặp trùng, phần tử đã mất/tạo lại hoặc ngoài nhóm đang chọn sẽ bị từ chối toàn bộ, giữ nguyên mapping đang dùng. Không tự nối lại bằng Tag hoặc GUID khi UniqueId thay đổi sau khi xuất/link lại IFC; khi đó cần xác nhận lại. Các bản sao model có thể giữ nguyên UniqueId, nên vẫn phải kiểm tra đúng file/link trước khi dùng.
+
+Chức năng này không mở rộng bộ đọc IFC: mesh, solid phức tạp hoặc phần tử không nhận diện được Duct/Pipe vẫn cần xử lý riêng. Giao diện chọn cặp làm việc trên danh sách đã đọc; chưa hỗ trợ click chọn trực tiếp hai phần tử trong viewport.
+
+
 ## Cập nhật ghép hình học dự phòng (12/11/2026)
 
 Bật mặc định **Ghép hình học khi không có GUID dùng chung**. Có thể tắt để chỉ ghép bằng GUID. Có thể để trống parameter nguồn khi bật dự phòng. Ưu tiên GUID chính xác; cặp GUID đã xác định được giữ trước kể cả hình học khác nhiều. GUID trùng báo **Cần xác nhận cặp**, không bị bỏ qua bằng ghép hình học.
@@ -16,13 +48,13 @@ DLL Debug đang chạy trong Revit bị khóa nên bản cập nhật được b
 
 ```powershell
 dotnet build MEP_Compare_Project_ver1.csproj -c Debug --no-restore -p:OutputPath=bin\Debug\GeometryFallback\
-dotnet Verification\bin\Release\net8.0-windows\Verification.dll --logic-only
-dotnet Verification\bin\Release\net8.0-windows\Verification.dll --headless-ui
+dotnet Verification\bin\Release\net10.0-windows\Verification.dll --logic-only
+dotnet Verification\bin\Release\net10.0-windows\Verification.dll --headless-ui
 ```
 
 `--logic-only` không mở cửa sổ. `--headless-ui` kiểm tra và render WPF trong bộ nhớ, không mở cửa sổ và không điều khiển chuột/bàn phím. Quy tắc ghép/kiểm chứng ban đầu dưới đây được bổ sung bởi phần cập nhật này.
 
-Thư viện C# .NET 8 Windows x64, chạy thủ công qua Add-In Manager. Entry point:
+Thư viện C# .NET 10 Windows x64, chạy thủ công qua Add-In Manager. Entry point:
 
 `MEP_Compare_Project_ver1.Command.CompareCommand`
 
@@ -34,9 +66,9 @@ dotnet build MEP_Compare_Project_ver1.csproj -c Release -p:Platform=x64 -p:Resto
 
 DLL tương đối với thư mục project:
 
-`bin\x64\Release\net8.0-windows\MEP_Compare_Project_ver1.dll`
+`bin\x64\Release\net10.0-windows\MEP_Compare_Project_ver1.dll`
 
-Project tham chiếu `RevitAPI.dll` và `RevitAPIUI.dll` tại `C:\Program Files\Autodesk\Revit 2025`. Cả hai có `Private=false`, không copy vào output. Có thể truyền `-p:RevitInstallDir="đường dẫn cài đặt"`. Project không dùng package bên ngoài. `NuGet.Config` không khai báo nguồn package; cần có sẵn targeting pack .NET 8 và Windows Desktop trên máy build.
+Project tham chiếu `RevitAPI.dll` và `RevitAPIUI.dll` tại `C:\Program Files\Autodesk\Revit 2025`. Cả hai có `Private=false`, không copy vào output. Có thể truyền `-p:RevitInstallDir="đường dẫn cài đặt"`. Project không dùng package bên ngoài. `NuGet.Config` không khai báo nguồn package; cần có sẵn targeting pack .NET 10 và Windows Desktop trên máy build.
 
 1. Mở project trong Revit 2025; IFC đã được link và loaded.
 2. Add-In Manager → Manual → Load DLL ở đường dẫn trên.
@@ -78,7 +110,7 @@ Entry point có `[Transaction(TransactionMode.Manual)]` cho Add-In Manager. Khô
 
 ```powershell
 dotnet build Verification\Verification.csproj -c Release -p:RestoreConfigFile=NuGet.Config
-dotnet Verification\bin\Release\net8.0-windows\Verification.dll
+dotnet Verification\bin\Release\net10.0-windows\Verification.dll
 ```
 
 Verification liên kết trực tiếp Models/Matching/Comparison/Reporting/UI; không tham chiếu Revit API và không mở model. Tạo dữ liệu giả để kiểm tra ghép cặp, sai số, CSV và WPF modal, lưu ảnh tại `Verification\artifacts`. Dữ liệu giả không được dùng trong DLL sản phẩm.

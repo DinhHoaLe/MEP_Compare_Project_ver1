@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <PlatformTarget>x64</PlatformTarget>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="..\Models\CompareModels.cs" Link="Models.cs" />
     <Compile Include="..\Matching\GuidMatcher.cs" Link="Matching.cs" />
+    <Compile Include="..\Matching\MappingSession.cs" Link="MappingSession.cs" />
     <Compile Include="..\Matching\PairingService.cs" Link="PairingService.cs" />
     <Compile Include="..\Comparison\ComparisonService.cs" Link="Comparison.cs" />
     <Compile Include="..\Reporting\CsvReport.cs" Link="CsvReport.cs" />

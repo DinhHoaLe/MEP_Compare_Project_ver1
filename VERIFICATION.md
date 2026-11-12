@@ -1,5 +1,26 @@
 # Kết quả kiểm chứng — 11/11/2026
 
+## Đã xử lý tham chiếu API và build chạy thử Revit 2025.5 — 12/11/2026
+
+- Nguyên nhân CS1705: csproj đặt .NET 8 trong khi Revit cài trên máy là **2025.5 / 25.5.0.57**, đã chuyển sang .NET 10. Đã xác minh FileVersion của Revit.exe/RevitAPI/RevitAPIUI và runtimeconfig RevitNET/RevitAPI/AddInManager. [Release notes Autodesk](https://help.autodesk.com/cloudhelp/2025/ENU/RevitReleaseNotes/files/2025updates/RevitReleaseNotes_2025updates_2025_5_html.html) xác nhận cùng build và .NET 10.
+- Đã đổi TargetFramework sản phẩm và Verification sang net10.0-windows. Giữ API tham chiếu từ bản cài Revit với Private=false; không thay DLL Autodesk hoặc sửa bản cài.
+- Build Release x64 chính thức: **PASS, 0 warnings/errors**. DLL: `bin/x64/Release/net10.0-windows/MEP_Compare_Project_ver1.dll`. Không kèm Autodesk API trong output.
+- Build Verification .NET 10: **PASS, 0 warnings/errors**. Chạy --headless-ui: **70/70 PASS**, không mở cửa sổ. QA artifacts: `Verification/bin/qa/Verification/artifacts`.
+- Gói chạy thử: `bin/MEP_Compare_Revit2025.5_Mapping.zip`, gồm DLL, deps.json, PDB và hướng dẫn. SHA256 DLL: `5F7D30A415844756B3E82E6C52DB3573E766690FFD452AD5A9279AF434CD9A96`.
+- Chưa thử command trong Revit 2025.5 thật. Lúc kiểm tra chỉ thấy hai tiến trình Revit 2023; không khởi động, đóng hay điều khiển các phiên đó.
+- Các nhận định bên dưới về việc phải tìm API .NET 8 hoặc không được load .NET 10 vào Revit 2025 đã được thay thế: cần phân biệt Revit 2025.0–2025.4 (.NET 8) và 2025.5 (.NET 10). Dùng bản Release mới ở trên.
+
+## Xác nhận cặp thủ công và mapping JSON — 12/11/2026
+
+- Build Verification Release .NET 8: PASS, 0 warnings/errors.
+- Chạy bộ kiểm tra với --headless-ui: **70 kiểm tra PASS** (64 logic/CSV và 6 WPF). Có thêm 16 kiểm tra mapping: ưu tiên thủ công trước GUID, dành IFC duy nhất, vẫn đo sai số, chặn tranh chấp một–một, lưu/nạp JSON, giữ mapping khi nạp file lỗi, đổi ElementId số nhưng giữ UniqueId, sai model/link, phần tử đã mất, bỏ cặp và hình học không hỗ trợ.
+- Render và xem hai ảnh giao diện mới tại Verification/bin/qa/Verification/artifacts/results-manual-mapping.png và manual-pair-picker.png. Giao diện kết quả có đủ nút xác nhận/bỏ/lưu/nạp; hộp chọn IFC hiển thị danh sách cùng loại. Không mở cửa sổ, không điều khiển chuột/bàn phím.
+- Lệnh tái chạy từ thư mục project: dotnet Verification/bin/Release/net8.0-windows/Verification.dll --headless-ui. Lần QA này chạy với working directory Verification/bin/qa để không ghi đè các artifact cũ đã commit.
+- Build sản phẩm theo cấu hình gốc net8.0-windows vẫn bị CS1705: bộ RevitAPI/RevitAPIUI hiện tại (25.5.0.0) tham chiếu System.Runtime 10.0.0.0. Đây là lỗi có sẵn trước thay đổi mapping; chưa tạo được DLL .NET 8 dùng cho Revit 2025 từ bộ tham chiếu hiện tại.
+- Để kiểm tra biên dịch cả Command và ModelReader, đã override TargetFramework=net10.0-windows chỉ trong lệnh restore/build: PASS, 0 warnings/errors. Output ở bin/CompatibilityCheck; **đây chỉ là bản kiểm tra biên dịch, không dùng để load vào Revit 2025**. TargetFramework trong csproj vẫn giữ net8.0-windows. Cần bộ DLL API tương thích .NET 8 để build bản triển khai.
+- Chưa chạy xác nhận/lưu/nạp trong Revit thật; chưa xác minh độ ổn định UniqueId của IFC sau reload từ exporter CAD cụ thể. Mapping từ chối phần tử bị thay UniqueId, không đoán lại cặp. Không thay đổi model, parameter, view hoặc bản cài Revit.
+
+
 ## Ghép hình học dự phòng — 12/11/2026
 
 - Build Debug mới sang `bin\Debug\GeometryFallback\MEP_Compare_Project_ver1.dll`: 0 errors, 0 warnings. DLL Debug ở đường dẫn cũ bị Revit khóa; không ghi đè, không dừng Revit.

@@ -8,7 +8,7 @@ using MEP_Compare_Project_ver1.Reporting;
 
 namespace MEP_Compare_Project_ver1.UI;
 
-public enum ResultAction { Close, Configure, SelectHost, SelectLinked, ZoomPair }
+public enum ResultAction { Close, Configure, SelectHost, SelectLinked, ZoomPair, Refresh }
 public sealed class ResultsWindow : Window
 {
     private readonly DataGrid grid=new() { IsReadOnly=true,AutoGenerateColumns=false,SelectionMode=DataGridSelectionMode.Single,CanUserAddRows=false,EnableRowVirtualization=true,EnableColumnVirtualization=true };
@@ -18,7 +18,7 @@ public sealed class ResultsWindow : Window
     private readonly ICollectionView view;
     public ResultAction Action { get; private set; }
     public ResultRow? Selected { get; private set; }
-    public ResultsWindow(IReadOnlyList<ResultRow> rows,RunOptions options,string document,string link)
+    public ResultsWindow(IReadOnlyList<ResultRow> rows,RunOptions options,string document,string link, Matching.MappingSession? mapping=null)
     {
         Title="Compare Project Ver1 — Kết quả";Width=1350;Height=750;MinWidth=850;MinHeight=480;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         view=CollectionViewSource.GetDefaultView(rows);
@@ -29,7 +29,7 @@ public sealed class ResultsWindow : Window
         var filter=new StackPanel { Orientation=Orientation.Horizontal };top.Children.Add(filter);
         filter.Children.Add(new TextBlock { Text="Tìm ID / GUID / Tag",VerticalAlignment=VerticalAlignment.Center });filter.Children.Add(search);
         status.ItemsSource=new[]{"Tất cả"}.Concat(rows.Select(r=>r.Status).Distinct().OrderBy(s=>s)).ToList();status.SelectedIndex=0;filter.Children.Add(status);filter.Children.Add(count);
-        var bottom=new StackPanel { Orientation=Orientation.Horizontal,Margin=new Thickness(0,10,0,0) };DockPanel.SetDock(bottom,Dock.Bottom);dock.Children.Add(bottom);
+        var bottom=new WrapPanel { Orientation=Orientation.Horizontal,Margin=new Thickness(0,10,0,0) };DockPanel.SetDock(bottom,Dock.Bottom);dock.Children.Add(bottom);
         Button Add(string text,Action click) { var b=new Button { Content=text,Margin=new Thickness(0,0,8,0),Padding=new Thickness(10,6,10,6) };b.Click+=(_,_)=>click();bottom.Children.Add(b);return b; }
         Add("Select host",()=>Finish(ResultAction.SelectHost));Add("Select linked",()=>Finish(ResultAction.SelectLinked));Add("Zoom cặp",()=>Finish(ResultAction.ZoomPair));
         Add("Xuất CSV (dòng đang lọc)",()=>
@@ -39,6 +39,41 @@ public sealed class ResultsWindow : Window
             try { CsvReport.Write(dialog.FileName,view.Cast<ResultRow>(),options,document,link);MessageBox.Show(this,"Đã xuất CSV.","Compare Project"); }
             catch(Exception ex) { MessageBox.Show(this,ex.Message,"Không xuất được CSV"); }
         });
+        if(mapping is not null)
+        {
+            void RefreshRows() { Action=ResultAction.Refresh;Close(); }
+            Add("Xác nhận cặp…",()=>
+            {
+                if(grid.SelectedItem is not ResultRow row || row.HostId is null) { MessageBox.Show(this,"Chọn dòng có Host ID.");return; }
+                var picker=new ManualPairWindow(mapping,row) { Owner=this };
+                if(picker.ShowDialog()==true) RefreshRows();
+            });
+            Add("Bỏ cặp thủ công",()=>
+            {
+                if(grid.SelectedItem is not ResultRow row || row.HostId is null) { MessageBox.Show(this,"Chọn dòng có Host ID.");return; }
+                mapping.Remove(row.HostId.Value);RefreshRows();
+            });
+            Add("Lưu mapping…",()=>
+            {
+                var dialog=new SaveFileDialog { Filter="Mapping JSON (*.json)|*.json",FileName="CompareProject.mapping.json",AddExtension=true,DefaultExt=".json" };
+                if(dialog.ShowDialog(this)!=true) return;
+                try { mapping.Save(dialog.FileName);MessageBox.Show(this,$"Đã lưu {mapping.Count} cặp thủ công."); }
+                catch(Exception ex) { MessageBox.Show(this,ex.Message,"Không lưu được mapping"); }
+            });
+            Add("Nạp mapping…",()=>
+            {
+                if(mapping.Dirty && MessageBox.Show(this,"Thay thế các cặp chưa lưu bằng file mapping?","Nạp mapping",MessageBoxButton.YesNo)!=MessageBoxResult.Yes) return;
+                var dialog=new OpenFileDialog { Filter="Mapping JSON (*.json)|*.json" };
+                if(dialog.ShowDialog(this)!=true) return;
+                try { mapping.Load(dialog.FileName);RefreshRows(); }
+                catch(Exception ex) { MessageBox.Show(this,ex.Message,"Không nạp được mapping"); }
+            });
+            top.Children.Add(new TextBlock { Text=$"Mapping thủ công: {mapping.Count} cặp{(mapping.Dirty?" — chưa lưu":"")}. Nạp file khi chạy lại command; bỏ cặp sẽ trả về ghép tự động.",TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,6,0,4) });
+            Closing+=(_,e)=>
+            {
+                if(Action!=ResultAction.Refresh && mapping.Dirty && MessageBox.Show(this,"Mapping chưa được lưu. Tiếp tục rời bảng kết quả?","Mapping chưa lưu",MessageBoxButton.YesNo)!=MessageBoxResult.Yes) { e.Cancel=true;Action=ResultAction.Close; }
+            };
+        }
         Add("Đổi cấu hình",()=> { Action=ResultAction.Configure;Close(); });Add("Đóng",Close);
         dock.Children.Add(grid);
         void Col(string title,string property,string? format=null)
